@@ -1376,7 +1376,8 @@ local function createESP(model)
         HPText = nil,
         Tracer = nil,
         TracerOutline = nil,
-        DirectionArrow = nil
+        DirectionArrow = nil,
+        Highlight = nil
     }
     
     pcall(function()
@@ -1460,7 +1461,8 @@ local function removeESP(model)
     pcall(function() if esp.Tracer then esp.Tracer:Remove() end end)
     pcall(function() if esp.TracerOutline then esp.TracerOutline:Remove() end end)
     pcall(function() if esp.DirectionArrow then esp.DirectionArrow:Remove() end end)
-    
+    pcall(function() if esp.Highlight then esp.Highlight:Destroy() end end)
+
     ESPObjects[model] = nil
     
     if playerTracker[model.Name] == model then
@@ -1486,6 +1488,34 @@ local function hideESP(esp)
     if esp.DirectionArrow then esp.DirectionArrow.Visible = false end
 end
 
+local function updateHighlight(model, esp)
+    local teamDot = model:FindFirstChild("TeamDot")
+    local shouldHighlight = false
+
+    if teamDot then
+        local success, enabled = pcall(function()
+            return teamDot.Enabled
+        end)
+        shouldHighlight = success and enabled == false
+    end
+
+    if shouldHighlight then
+        if not esp.Highlight or esp.Highlight.Parent ~= model then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "TeamDotHighlight"
+            highlight.FillTransparency = 1
+            highlight.OutlineColor = Color3.new(1, 1, 0)
+            highlight.Parent = model
+            esp.Highlight = highlight
+        else
+            esp.Highlight.Enabled = true
+        end
+    elseif esp.Highlight then
+        esp.Highlight:Destroy()
+        esp.Highlight = nil
+    end
+end
+
 local function updateESP()
     local localChar = LocalPlayer.Character
     if not localChar then return end
@@ -1498,7 +1528,9 @@ local function updateESP()
             removeESP(model)
             continue
         end
-        
+
+        updateHighlight(model, esp)
+
         -- TeamCheck: Skip players with TeamDot if enabled
         if TeamCheckConfig.Enabled and hasTeamDot(model) then
             hideESP(esp)
